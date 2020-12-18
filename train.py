@@ -38,6 +38,30 @@ except:
             pass
 
 
+#memory usage
+import subprocess
+
+def get_gpu_memory_map():
+    """Get the current gpu usage.
+
+    Returns
+    -------
+    usage: dict
+        Keys are device ids as integers.
+        Values are memory usage as integers in MB.
+    """
+    result = subprocess.check_output(
+        [
+            'nvidia-smi', '--query-gpu=memory.used',
+            '--format=csv,nounits,noheader'
+        ], encoding='utf-8')
+    # Convert lines into a dictionary
+    gpu_memory = [int(x) for x in result.strip().split('\n')]
+    gpu_memory_map = dict(zip(range(len(gpu_memory)), gpu_memory))
+    return gpu_memory_map
+
+
+
 # exclude extremly large displacements
 MAX_FLOW = 400
 SUM_FREQ = 100
@@ -84,7 +108,7 @@ def fetch_optimizer(args, model):
         pct_start=0.05, cycle_momentum=False, anneal_strategy='linear')
 
     return optimizer, scheduler
-    
+
 
 class Logger:
     def __init__(self, model, scheduler):
@@ -98,7 +122,7 @@ class Logger:
         metrics_data = [self.running_loss[k]/SUM_FREQ for k in sorted(self.running_loss.keys())]
         training_str = "[{:6d}, {:10.7f}] ".format(self.total_steps+1, self.scheduler.get_last_lr()[0])
         metrics_str = ("{:10.4f}, "*len(metrics_data)).format(*metrics_data)
-        
+
         # print the training status
         print(training_str + metrics_str)
 
@@ -154,6 +178,7 @@ def train(args):
     scaler = GradScaler(enabled=args.mixed_precision)
     logger = Logger(model, scheduler)
 
+
     VAL_FREQ = 5000
     add_noise = True
 
@@ -161,6 +186,7 @@ def train(args):
     while should_keep_training:
 
         for i_batch, data_blob in enumerate(train_loader):
+            #now=time.time()
             optimizer.zero_grad()
             image1, image2, flow, valid = [x.cuda() for x in data_blob]
 
@@ -169,20 +195,22 @@ def train(args):
                 image1 = (image1 + stdv * torch.randn(*image1.shape).cuda()).clamp(0.0, 255.0)
                 image2 = (image2 + stdv * torch.randn(*image2.shape).cuda()).clamp(0.0, 255.0)
 
-            flow_predictions = model(image1, image2, iters=args.iters)            
-
+            flow_predictions = model(image1, image2, iters=args.iters)
+            #time2pred = time.time()
             loss, metrics = sequence_loss(flow_predictions, flow, valid, args.gamma)
             scaler.scale(loss).backward()
-            scaler.unscale_(optimizer)                
+            scaler.unscale_(optimizer)
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
-            
+
             scaler.step(optimizer)
             scheduler.step()
             scaler.update()
 
             logger.push(metrics)
-
+            #print(total_steps)
+            #print(VAL_FREQ)
             if total_steps % VAL_FREQ == VAL_FREQ - 1:
+                print(get_gpu_memory_map())
                 PATH = 'checkpoints/%d_%s.pth' % (total_steps+1, args.name)
                 torch.save(model.state_dict(), PATH)
 
@@ -196,11 +224,11 @@ def train(args):
                         results.update(evaluate.validate_kitti(model.module))
 
                 logger.write_dict(results)
-                
+
                 model.train()
                 if args.stage != 'chairs':
                     model.module.freeze_bn()
-            
+
             total_steps += 1
 
             if total_steps > args.num_steps:

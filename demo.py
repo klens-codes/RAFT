@@ -43,8 +43,7 @@ def viz(img, flo):
     flo = flow_viz.flow_to_image(flo)
     img_flo = np.concatenate([img, flo], axis=0)
 
-    cv2.imshow('image', img_flo[:, :, [2,1,0]]/255.0)
-    cv2.waitKey()
+    cv2.imwrite('image.png', img_flo[:, :, [2,1,0]])
 
 
 def demo(args):

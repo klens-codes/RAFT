@@ -14,7 +14,6 @@ import torch.nn.functional as F
 
 class FlowAugmentor:
     def __init__(self, crop_size, min_scale=-0.2, max_scale=0.5, do_flip=True):
-        
         # spatial augmentation params
         self.crop_size = crop_size
         self.min_scale = min_scale
@@ -68,7 +67,7 @@ class FlowAugmentor:
         # randomly sample scale
         ht, wd = img1.shape[:2]
         min_scale = np.maximum(
-            (self.crop_size[0] + 8) / float(ht), 
+            (self.crop_size[0] + 8) / float(ht),
             (self.crop_size[1] + 8) / float(wd))
 
         scale = 2 ** np.random.uniform(self.min_scale, self.max_scale)
@@ -77,7 +76,7 @@ class FlowAugmentor:
         if np.random.rand() < self.stretch_prob:
             scale_x *= 2 ** np.random.uniform(-self.max_stretch, self.max_stretch)
             scale_y *= 2 ** np.random.uniform(-self.max_stretch, self.max_stretch)
-        
+
         scale_x = np.clip(scale_x, min_scale, None)
         scale_y = np.clip(scale_y, min_scale, None)
 
@@ -99,9 +98,14 @@ class FlowAugmentor:
                 img2 = img2[::-1, :]
                 flow = flow[::-1, :] * [1.0, -1.0]
 
-        y0 = np.random.randint(0, img1.shape[0] - self.crop_size[0])
-        x0 = np.random.randint(0, img1.shape[1] - self.crop_size[1])
-        
+        if(img1.shape[0]!=self.crop_size[0]):
+            y0 = np.random.randint(0,abs(img1.shape[0]-self.crop_size[0]))
+        else:
+            y0 = 0
+        if(img1.shape[1]!=self.crop_size[1]):
+            x0 = np.random.randint(0,(img1.shape[1]-self.crop_size[1]))
+        else:
+            x0 = 0
         img1 = img1[y0:y0+self.crop_size[0], x0:x0+self.crop_size[1]]
         img2 = img2[y0:y0+self.crop_size[0], x0:x0+self.crop_size[1]]
         flow = flow[y0:y0+self.crop_size[0], x0:x0+self.crop_size[1]]

@@ -6,3 +6,10 @@ pytorch_env
 models
 build
 correlation.egg-info
+checkpoint*
+alloutputs*
+venv
+videosoutput
+Hella*
+pins
+sunil_test_scenes

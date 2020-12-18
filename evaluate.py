@@ -24,22 +24,22 @@ def create_sintel_submission(model, iters=32, warm_start=False, output_path='sin
     model.eval()
     for dstype in ['clean', 'final']:
         test_dataset = datasets.MpiSintel(split='test', aug_params=None, dstype=dstype)
-        
+
         flow_prev, sequence_prev = None, None
         for test_id in range(len(test_dataset)):
             image1, image2, (sequence, frame) = test_dataset[test_id]
             if sequence != sequence_prev:
                 flow_prev = None
-            
+
             padder = InputPadder(image1.shape)
             image1, image2 = padder.pad(image1[None].cuda(), image2[None].cuda())
-
+            print(image1.shape)
             flow_low, flow_pr = model(image1, image2, iters=iters, flow_init=flow_prev, test_mode=True)
             flow = padder.unpad(flow_pr[0]).permute(1, 2, 0).cpu().numpy()
 
             if warm_start:
                 flow_prev = forward_interpolate(flow_low[0])[None].cuda()
-            
+
             output_dir = os.path.join(output_path, dstype, sequence)
             output_file = os.path.join(output_dir, 'frame%04d.flo' % (frame+1))
 
@@ -105,10 +105,10 @@ def validate_sintel(model, iters=32):
             image1, image2, flow_gt, _ = val_dataset[val_id]
             image1 = image1[None].cuda()
             image2 = image2[None].cuda()
-
+            #print(image1.shape)
             padder = InputPadder(image1.shape)
             image1, image2 = padder.pad(image1, image2)
-
+            #print(image1.shape)
             flow_low, flow_pr = model(image1, image2, iters=iters, test_mode=True)
             flow = padder.unpad(flow_pr[0]).cpu()
 

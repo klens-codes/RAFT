@@ -1,0 +1,25 @@
+import os
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--left',nargs="+", help="restore checkpoint")
+parser.add_argument('--right',nargs="+", help="restore checkpoint")
+args = parser.parse_args()
+print(args)
+
+left_string = ""
+for i in args.left:
+    left_string = left_string+i+" "
+
+right_string = ""
+for i in args.right:
+    right_string = right_string+i+" "
+
+os.system("python3 demo_anyimage.py --out_dir ./alloutputs/output_allRAFTmodels/RAFT_ftChairsSDHom --model checkpoints-20Oct2020-lr10_-6_-finetuneChairSDHom/15000_raft-chairsSDHom.pth --left "+left_string+"--right "+right_string+"--batch 1")
+os.system("python3 demo_anyimage.py --out_dir ./alloutputs/output_allRAFTmodels/RAFT_ftFlyingThings3D --model checkpoints-Nov9-ftThings3D/15000_raft-FT-FlyingThings3d.pth --left "+left_string+"--right "+right_string+"--batch 1")
+os.system("python3 demo_anyimage.py --out_dir ./alloutputs/output_allRAFTmodels/RAFT_ftMixture --model checkpoints-2Nov2020-ftMixture/15000_raft-mixThingswithChairsSDHom.pth --left "+left_string+"--right "+right_string+"--batch 1")
+os.system("python3 demo_anyimage.py --out_dir ./alloutputs/output_allRAFTmodels/RAFT_SINTEL --model models/raft-sintel.pth --left "+left_string+"--right "+right_string+"--batch 1")
+os.system("python3 demo_anyimage.py --out_dir ./alloutputs/output_allRAFTmodels/RAFT_KITTI --model models/raft-kitti.pth --left "+left_string+"--right "+right_string+"--batch 1")
+os.system("python3 demo_anyimage.py --out_dir ./alloutputs/output_allRAFTmodels/RAFT_Things --model models/raft-things.pth --left "+left_string+"--right "+right_string+"--batch 1")
+
+

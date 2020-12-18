@@ -94,13 +94,12 @@ class FlowDataset(data.Dataset):
         self.flow_list = v * self.flow_list
         self.image_list = v * self.image_list
         return self
-        
+
     def __len__(self):
         return len(self.image_list)
-        
 
 class MpiSintel(FlowDataset):
-    def __init__(self, aug_params=None, split='training', root='datasets/Sintel', dstype='clean'):
+    def __init__(self, aug_params=None, split='training', root='/data2/opticalflow/datasets/SINTEL', dstype='clean'):
         super(MpiSintel, self).__init__(aug_params)
         flow_root = osp.join(root, split, 'flow')
         image_root = osp.join(root, split, dstype)
@@ -133,6 +132,51 @@ class FlyingChairs(FlowDataset):
                 self.flow_list += [ flows[i] ]
                 self.image_list += [ [images[2*i], images[2*i+1]] ]
 
+class ChairsSDHom(FlowDataset):
+    def __init__(self, aug_params=None, split='train', root='/data2/opticalflow/datasets/ChairsSDHom_extended/train/'):
+        super(ChairsSDHom, self).__init__(aug_params)
+        images = sorted(glob(osp.join(root, '*img*.png')))
+        flows = sorted(glob(osp.join(root, '*.flo')))
+        images.extend(sorted(glob(osp.join(root.replace("train","val"),'*img*.png'))))
+        flows.extend(sorted(glob(osp.join(root.replace("train","val"),'*.flo'))))
+        print ("total images :",len(images))
+        print ("total flows :",len(flows))
+        assert (len(images)//2 == len(flows))
+
+        split_list = [1]*20966+[2]*704
+        for i in range(len(flows)):
+            xid = split_list[i]
+            if (split=='training' and xid==1) or (split=='validation' and xid==2):
+                self.flow_list += [ flows[i] ]
+                self.image_list += [ [images[2*i], images[2*i+1]] ]
+
+class FlyingThings3d(FlowDataset):
+    def __init__(self, aug_params=None, root1="/data2/opticalflow/datasets/FlyingThings",):
+        super(FlyingThings3d, self).__init__(aug_params)
+        flows_things3D = sorted(glob(osp.join(root1,"train","flow","left","into_future", '*.flo')))
+        for i in range(len(flows_things3D)):
+            self.flow_list += [ flows_things3D[i] ]
+            self.image_list += [ [flows_things3D[i].replace(".flo",".png").replace("/train/flow/left/into_future/","/train/image_clean/left/"),osp.join(osp.split(flows_things3D[i])[0],str(int(osp.split(flows_things3D[i])[1][:7])+1).zfill(7)+".png").replace("/train/flow/left/into_future/","/train/image_clean/left/")] ] 
+        print("Total scenes: ",len(self.flow_list))
+
+class MixThings3dAndChairsSDHom(FlowDataset):
+    def __init__(self, aug_params=None, root1="/data2/opticalflow/datasets/FlyingThings" ,root2="/data2/opticalflow/datasets/ChairsSDHom_extended/train/",):
+        super(MixThings3dAndChairsSDHom, self).__init__(aug_params)
+        images_chairsSDHom = sorted(glob(osp.join(root2, '*img*.png')))
+        flows_chairsSDHom = sorted(glob(osp.join(root2, '*.flo')))
+        flows_things3D = sorted(glob(osp.join(root1,"train","flow","left","into_future", '*.flo')))
+        for i in range(len(flows_chairsSDHom)):
+            self.flow_list += [ flows_chairsSDHom[i] ]
+            self.image_list += [ [images_chairsSDHom[2*i], images_chairsSDHom[2*i+1]] ]
+        print("Total ChairSDHom scenes : ",len(self.flow_list))
+        for i in range(len(flows_things3D)):
+            self.flow_list += [ flows_things3D[i] ]
+            self.image_list += [ [flows_things3D[i].replace(".flo",".png").replace("/train/flow/left/into_future/","/train/image_clean/left/"),osp.join(osp.split(flows_things3D[i])[0],str(int(osp.split(flows_things3D[i])[1][:7])+1).zfill(7)+".png").replace("/train/flow/left/into_future/","/train/image_clean/left/")] ] 
+        print("Total scenes after Things3D : ",len(self.flow_list))
+        c = list(zip(self.flow_list, self.image_list))
+        random.shuffle(c)
+        self.flow_list, self.image_list = zip(*c)
+        print("Total scenes: ",len(self.flow_list))
 
 class FlyingThings3D(FlowDataset):
     def __init__(self, aug_params=None, root='datasets/FlyingThings3D', dstype='frames_cleanpass'):
@@ -202,18 +246,28 @@ def fetch_dataloader(args, TRAIN_DS='C+T+K+S+H'):
     if args.stage == 'chairs':
         aug_params = {'crop_size': args.image_size, 'min_scale': -0.1, 'max_scale': 1.0, 'do_flip': True}
         train_dataset = FlyingChairs(aug_params, split='training')
-    
+
+    elif args.stage == "chairsSDHom":
+        aug_params = {'crop_size': args.image_size, 'min_scale': -0.1, 'max_scale': 1.0, 'do_flip': True}
+        train_dataset = ChairsSDHom(aug_params, split='training')
+
     elif args.stage == 'things':
         aug_params = {'crop_size': args.image_size, 'min_scale': -0.4, 'max_scale': 0.8, 'do_flip': True}
         clean_dataset = FlyingThings3D(aug_params, dstype='frames_cleanpass')
         final_dataset = FlyingThings3D(aug_params, dstype='frames_finalpass')
         train_dataset = clean_dataset + final_dataset
+    elif args.stage == "FlyingThings3d":
+        aug_params = {'crop_size': args.image_size, 'min_scale': -0.1, 'max_scale': 1.0, 'do_flip': True}
+        train_dataset = FlyingThings3d(aug_params)
+    elif args.stage == "mixThingswithChairsSDHom":
+        aug_params = {'crop_size': args.image_size, 'min_scale': -0.1, 'max_scale': 1.0, 'do_flip': True}
+        train_dataset = MixThings3dAndChairsSDHom(aug_params)
 
     elif args.stage == 'sintel':
         aug_params = {'crop_size': args.image_size, 'min_scale': -0.2, 'max_scale': 0.6, 'do_flip': True}
         things = FlyingThings3D(aug_params, dstype='frames_cleanpass')
         sintel_clean = MpiSintel(aug_params, split='training', dstype='clean')
-        sintel_final = MpiSintel(aug_params, split='training', dstype='final')        
+        sintel_final = MpiSintel(aug_params, split='training', dstype='final')
 
         if TRAIN_DS == 'C+T+K+S+H':
             kitti = KITTI({'crop_size': args.image_size, 'min_scale': -0.3, 'max_scale': 0.5, 'do_flip': True})

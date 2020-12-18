@@ -1,0 +1,29 @@
+# setup
+source venv/bin/activate
+
+# for inference on KLens video
+# Edit the path of folder conatining videoframes in ./KLens_video.py and then run
+mv core/corr.py core/corr_orig.py
+mv core/corr_effi.py core/corr.py
+python3 demo-kvideo.py --model=models/raft-things.pth --batch=1
+mv core/corr.py core/corr_effi.py
+mv core/corr_orig.py core/corr.py
+# Output_dir = "./out_video"
+
+
+# for inference on KLens Images
+#search and Edit the variable root_path in ./demo-kimages.py and the file numbers in ./KLens_image.py and run the following command
+mv core/corr.py core/corr_orig.py
+mv core/corr_effi.py core/corr.py
+python3 demo-kimages.py --model=models/raft-things.pth --batch=1
+mv core/corr.py core/corr_effi.py
+mv core/corr_orig.py core/corr.py
+# Output_dir = "./out_images"
+
+
+# Traning
+
+# run ./train.sh and other ./train*.sh for training or Fine tuning.
+
+# Example
+python demo.py --model=models/raft-things.pth --path=demo-frames
